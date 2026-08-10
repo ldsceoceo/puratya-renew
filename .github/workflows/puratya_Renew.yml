@@ -1,0 +1,73 @@
+name: MWS 自动续期
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 6 * * *'   # 每天 UTC 01:30 (北京时间 09:30)
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 拉取仓库代码
+        uses: actions/checkout@v4
+
+      - name: 设置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安装系统依赖 (sing-box 代理用)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq wget unzip ca-certificates
+
+      - name: 设置代理 (sing-box, 可选)
+        continue-on-error: true
+        env:
+          NODE_LINK: ${{ secrets.NODE_LINK }}
+        run: |
+          bash <(wget -qO- https://main.ssss.nyc.mn/setup_proxy.sh)
+
+      - name: 运行续期脚本
+        id: run_renew
+        env:
+          MWSTOKEN: ${{ secrets.MWSTOKEN }}
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          GH_TOKEN: ${{ secrets.REPO_TOKEN }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          TG_CHAT_ID: ${{ secrets.TG_CHAT_ID }}
+          BOT_IDS: ${{ secrets.BOT_IDS }}
+          EMAIL: ${{ secrets.EMAIL }}
+          TZ: Asia/Shanghai
+        run: |
+          node renew.js 2>&1 | tee renew.log
+
+      - name: 上传日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mws-renew-logs
+          path: renew.log
+          retention-days: 3
+
+      - name: 清理运行记录
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          pkill -f sing-box || true
+          runs=$(gh run list --workflow="${{ github.workflow }}" --limit=100 --json databaseId --jq '.[].databaseId')
+          count=0
+          for run_id in $runs; do
+            count=$((count + 1))
+            if [ $count -gt 2 ]; then
+              echo "删除运行记录: $run_id"
+              gh run delete $run_id || true
+            fi
+          done
