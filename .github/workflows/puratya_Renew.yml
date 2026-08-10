@@ -3,7 +3,7 @@ name: MWS 自动续期
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * *'   # 每天 UTC 01:30 (北京时间 09:30)
+    - cron: '0 6 */6 * *'   # 每天 UTC 01:30 (北京时间 09:30)
 
 permissions:
   contents: write
