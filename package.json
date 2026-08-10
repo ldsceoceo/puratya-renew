@@ -1,0 +1,7 @@
+{
+  "name": "mws-renew",
+  "version": "3.0.0",
+  "private": true,
+  "description": "MWS (cloud.puratya.com) 自动续期 - 纯 HTTP API + Discord OAuth 免过盾",
+  "dependencies": {}
+}
